@@ -1,0 +1,5 @@
+# Go 编译生成的程序
+/devstash
+
+# 本地保存的个人资料
+/data/items.json

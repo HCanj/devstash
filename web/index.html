@@ -1,0 +1,219 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>DevStash</title>
+</head>
+
+<body>
+    <h1>Devstash</h1>
+    <p>我的开发资料收藏箱</p>
+    <form id="item-form">
+        <div>
+            <label for="title">标题</label>
+            <input id="title" name="title" type="text" required>
+        </div>
+        <div>
+        <label for="content">内容</label>
+        <textarea id="content" name="content" required></textarea>
+        </div>
+
+        <div>
+            <label for="tags">标签</label>
+            <input id="tags" name="tags" type="text" placeholder="多个标签用逗号分隔">
+        </div>
+
+        <button id="submit-button" type="submit">添加资料</button>
+        <button id="cancel-edit" type="button" hidden>取消编辑</button>
+    </form>
+    <p id="form-message"></p>
+    <form id="search-form">
+        <label for="keyword">搜索资料</label>
+        <input
+            id="keyword"
+            name="keyword"
+            type="search"
+            placeholder="输入标题、内容或标签"
+        >
+        <button type="submit">搜索</button>
+        <button id="clear-search" type="button">清除</button>
+    </form>
+    <ul id="items-list"></ul>
+    <script>
+        //没传关键词默认空字符串
+        function loadItems(keyword = ""){
+            const list = document.getElementById("items-list");
+            list.textContent = "";
+
+            const url = "/api/items?keyword=" + encodeURIComponent(keyword)
+            fetch(url)
+            .then(function (response){
+                return response.json();
+            })
+            .then(function(items){
+
+                items.forEach(function (item){
+                    const li = document.createElement("li");
+                    li.textContent = item.title + ":" + item.content;
+
+                    const editButton = document.createElement("button");
+                    editButton.type = "button";
+                    editButton.textContent = "编辑";
+                    editButton.addEventListener("click", function(){
+                        editItem(item);
+                    });
+
+                    const deleteButton = document.createElement("button");
+                    deleteButton.type = "button";
+                    deleteButton.textContent = "删除";
+
+                    deleteButton.addEventListener("click", function(){
+                        deleteItem(item.id);
+                    });
+
+                    li.appendChild(document.createTextNode(" "));
+                    li.appendChild(editButton);
+                    li.appendChild(document.createTextNode(" "));
+                    li.appendChild(deleteButton);
+                    list.appendChild(li);
+                });
+            })
+            .catch(function (error){
+                console.error("读取资料失败：", error);
+            });
+            
+        }
+        const form = document.getElementById("item-form");
+        const message = document.getElementById("form-message");
+        const titleInput = document.getElementById("title");
+        const contentInput = document.getElementById("content");
+        const tagsInput = document.getElementById("tags");
+        const submitButton = document.getElementById("submit-button");
+        const cancelEditButton = document.getElementById("cancel-edit");
+        const searchForm = document.getElementById("search-form");
+        const keywordInput = document.getElementById("keyword");
+        const clearSearchButton = document.getElementById("clear-search");
+
+        let editingID = null;
+
+        function editItem(item){
+            editingID = item.id;
+            titleInput.value = item.title;
+            contentInput.value = item.content;
+            tagsInput.value = (item.tags || []).join(", ");
+            submitButton.textContent = "保存修改";
+            cancelEditButton.hidden = false;
+            message.textContent = "正在编辑：" + item.title;
+            titleInput.focus();
+        }
+
+        function resetItemForm(){
+            editingID = null;
+            form.reset();
+            submitButton.textContent = "添加资料";
+            cancelEditButton.hidden = true;
+        }
+
+
+        function deleteItem(id){
+            const confirmed = window.confirm("确定要删除这条资料吗?");
+            if (!confirmed){
+                return;
+            }
+
+            fetch("/api/items/" + id,{
+                method: "DELETE"
+            })
+            .then(function (response) {
+                if (!response.ok) {
+                    return response.text().then(function (text) {
+                        throw new Error(text);
+                    });
+                }
+
+                if (editingID === id) {
+                    resetItemForm();
+                }
+                message.textContent = "删除成功";
+
+                const keyword = keywordInput.value.trim();
+                loadItems(keyword);
+            })
+            .catch(function (error) {
+                console.error("删除资料失败：", error);
+                message.textContent = "删除资料失败：" + error.message;
+            });
+        }
+        form.addEventListener("submit", function(event){
+            event.preventDefault();
+            const formData = new FormData(form);
+            const title =  formData.get("title");
+            const content =  formData.get("content")
+            const tagstext = formData.get("tags");
+            const tags = tagstext.split(",")
+            .map(function (part){
+                return part.trim();
+            })
+            .filter(function (tag){
+                return tag !=="";
+            });
+            const itemData = {
+                title: title,
+                content: content,
+                tags: tags
+            };
+
+            const isEditing = editingID !== null;
+            const requestURL = isEditing ? "/api/items/" + editingID : "/api/items";
+            const requestMethod = isEditing ? "PUT" : "POST";
+
+            fetch(requestURL,{
+                method: requestMethod,
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify(itemData)
+
+            })
+            .then(function(response){
+                if(!response.ok){
+                    return response.text().then(function (text){
+                        throw new Error(text);
+                    });
+                }
+                return response.json();
+            })
+            .then(function (savedItem){
+                message.textContent = (isEditing ? "修改成功：" : "添加成功：") + savedItem.title;
+                resetItemForm();
+                loadItems(keywordInput.value.trim());
+            })
+            .catch(function(error){
+                const action = isEditing ? "修改" : "添加";
+                console.error(action + "资料失败：", error);
+                message.textContent = action + "资料失败：" + error.message;
+            })
+
+        })
+
+        cancelEditButton.addEventListener("click", function(){
+            resetItemForm();
+            message.textContent = "已取消编辑";
+        });
+
+        searchForm.addEventListener("submit", function(event){
+            event.preventDefault();
+            
+            const keyword = keywordInput.value.trim();
+            loadItems(keyword);
+        })
+
+        clearSearchButton.addEventListener("click", function(){
+            keywordInput.value = "";
+            loadItems();
+        });
+
+        loadItems();
+    </script>
+</body>
+</html>
