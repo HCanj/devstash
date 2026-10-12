@@ -55,6 +55,12 @@
                 items.forEach(function (item){
                     const li = document.createElement("li");
                     li.textContent = item.title + ":" + item.content;
+                    
+                    const tags = item.tags || [];
+
+                    if (tags.length >0) {
+                        li.textContent += " 标签： " + tags.join("、")
+                    }
 
                     const editButton = document.createElement("button");
                     editButton.type = "button";
