@@ -2,94 +2,83 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <title>DevStash</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="DevStash - 收藏、检索和管理你的开发资料">
+    <title>DevStash · 开发资料库</title>
+    <link rel="stylesheet" href="/styles.css">
 </head>
 
 <body>
-    <h1>Devstash</h1>
-    <p>我的开发资料收藏箱</p>
-    <form id="item-form">
-        <div>
-            <label for="title">标题</label>
-            <input id="title" name="title" type="text" required>
-        </div>
-        <div>
-        <label for="content">内容</label>
-        <textarea id="content" name="content" required></textarea>
-        </div>
+    <div class="app-shell">
+        <aside class="sidebar">
+            <div class="brand">
+                <div class="brand-mark" aria-hidden="true">&lt;/&gt;</div>
+                <div class="brand-copy">
+                    <strong>DevStash</strong>
+                    <span>Developer Library</span>
+                </div>
+            </div>
 
-        <div>
-            <label for="tags">标签</label>
-            <input id="tags" name="tags" type="text" placeholder="多个标签用逗号分隔">
-        </div>
+            <h2 class="sidebar-heading" id="form-heading">收藏新资料</h2>
+            <p class="sidebar-description">把常用命令、代码片段和开发知识集中收好，随时检索。</p>
 
-        <button id="submit-button" type="submit">添加资料</button>
-        <button id="cancel-edit" type="button" hidden>取消编辑</button>
-    </form>
-    <p id="form-message"></p>
-    <form id="search-form">
-        <label for="keyword">搜索资料</label>
-        <input
-            id="keyword"
-            name="keyword"
-            type="search"
-            placeholder="输入标题、内容或标签"
-        >
-        <button type="submit">搜索</button>
-        <button id="clear-search" type="button">清除</button>
-    </form>
-    <ul id="items-list"></ul>
+            <form id="item-form" aria-labelledby="form-heading">
+                <div class="field">
+                    <label for="title">资料标题</label>
+                    <input id="title" name="title" type="text" placeholder="例如：查看 Go 版本" required>
+                </div>
+                <div class="field">
+                    <label for="content">内容或命令</label>
+                    <textarea id="content" name="content" placeholder="输入命令、代码片段或说明…" required></textarea>
+                </div>
+                <div class="field">
+                    <label for="tags">标签</label>
+                    <input id="tags" name="tags" type="text" placeholder="多个标签用逗号分隔">
+                </div>
+                <div class="form-actions">
+                    <button class="button button-primary" id="submit-button" type="submit">添加到资料库</button>
+                    <button class="button button-muted" id="cancel-edit" type="button" hidden>取消</button>
+                </div>
+            </form>
+
+            <p class="form-message" id="form-message" role="status" aria-live="polite"></p>
+            <div class="sidebar-footer">
+                <span class="status-dot" aria-hidden="true"></span>
+                <span>本地资料库 · SQLite 持久化</span>
+            </div>
+        </aside>
+
+        <main class="workspace">
+            <div class="workspace-inner">
+                <header class="hero">
+                    <div>
+                        <p class="eyebrow">Knowledge workspace</p>
+                        <h1>我的开发资料库</h1>
+                        <p class="hero-description">把零散的技术知识变成可搜索、可维护的个人资产。</p>
+                    </div>
+                    <div class="library-count" aria-live="polite">
+                        <strong id="item-count">0</strong> 条资料
+                    </div>
+                </header>
+
+                <form class="search-panel" id="search-form" role="search">
+                    <svg class="search-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                        <path d="m21 21-4.35-4.35m2.35-5.15a7.5 7.5 0 1 1-15 0 7.5 7.5 0 0 1 15 0Z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                    </svg>
+                    <label for="keyword" hidden>搜索资料</label>
+                    <input id="keyword" name="keyword" type="search" placeholder="搜索标题、内容或标签…" autocomplete="off">
+                    <button class="button search-button" type="submit">搜索</button>
+                    <button class="button clear-button" id="clear-search" type="button">清除</button>
+                </form>
+
+                <ul class="items-list" id="items-list" aria-live="polite"></ul>
+            </div>
+        </main>
+    </div>
+
     <script>
-        //没传关键词默认空字符串
-        function loadItems(keyword = ""){
-            const list = document.getElementById("items-list");
-            list.textContent = "";
-
-            const url = "/api/items?keyword=" + encodeURIComponent(keyword)
-            fetch(url)
-            .then(function (response){
-                return response.json();
-            })
-            .then(function(items){
-
-                items.forEach(function (item){
-                    const li = document.createElement("li");
-                    li.textContent = item.title + ":" + item.content;
-                    
-                    const tags = item.tags || [];
-
-                    if (tags.length >0) {
-                        li.textContent += " 标签： " + tags.join("、")
-                    }
-
-                    const editButton = document.createElement("button");
-                    editButton.type = "button";
-                    editButton.textContent = "编辑";
-                    editButton.addEventListener("click", function(){
-                        editItem(item);
-                    });
-
-                    const deleteButton = document.createElement("button");
-                    deleteButton.type = "button";
-                    deleteButton.textContent = "删除";
-
-                    deleteButton.addEventListener("click", function(){
-                        deleteItem(item.id);
-                    });
-
-                    li.appendChild(document.createTextNode(" "));
-                    li.appendChild(editButton);
-                    li.appendChild(document.createTextNode(" "));
-                    li.appendChild(deleteButton);
-                    list.appendChild(li);
-                });
-            })
-            .catch(function (error){
-                console.error("读取资料失败：", error);
-            });
-            
-        }
         const form = document.getElementById("item-form");
+        const formHeading = document.getElementById("form-heading");
         const message = document.getElementById("form-message");
         const titleInput = document.getElementById("title");
         const contentInput = document.getElementById("content");
@@ -99,124 +88,234 @@
         const searchForm = document.getElementById("search-form");
         const keywordInput = document.getElementById("keyword");
         const clearSearchButton = document.getElementById("clear-search");
+        const list = document.getElementById("items-list");
+        const itemCount = document.getElementById("item-count");
 
         let editingID = null;
 
-        function editItem(item){
+        function setMessage(text, type = "") {
+            message.textContent = text;
+            message.className = "form-message" + (type ? " " + type : "");
+        }
+
+        function showListState(icon, title, description) {
+            list.textContent = "";
+
+            const state = document.createElement("li");
+            state.className = "list-state";
+            const stateContent = document.createElement("div");
+            const stateIcon = document.createElement("div");
+            stateIcon.className = "list-state-icon";
+            stateIcon.textContent = icon;
+            const stateTitle = document.createElement("strong");
+            stateTitle.textContent = title;
+            const stateDescription = document.createElement("p");
+            stateDescription.textContent = description;
+
+            stateContent.appendChild(stateIcon);
+            stateContent.appendChild(stateTitle);
+            stateContent.appendChild(stateDescription);
+            state.appendChild(stateContent);
+            list.appendChild(state);
+        }
+
+        function createItemCard(item, index) {
+            const card = document.createElement("li");
+            card.className = "item-card";
+            card.style.animationDelay = Math.min(index * 45, 270) + "ms";
+
+            const id = document.createElement("div");
+            id.className = "item-id";
+            id.textContent = "STASH #" + String(item.id).padStart(3, "0");
+
+            const title = document.createElement("h2");
+            title.className = "item-title";
+            title.textContent = item.title;
+
+            const content = document.createElement("p");
+            content.className = "item-content";
+            content.textContent = item.content;
+
+            const tagList = document.createElement("ul");
+            tagList.className = "tag-list";
+            const tags = item.tags || [];
+            tags.forEach(function (tag) {
+                const tagElement = document.createElement("li");
+                tagElement.className = "tag";
+                tagElement.textContent = tag;
+                tagList.appendChild(tagElement);
+            });
+
+            const actions = document.createElement("div");
+            actions.className = "item-actions";
+            const editButton = document.createElement("button");
+            editButton.className = "item-button edit-button";
+            editButton.type = "button";
+            editButton.textContent = "编辑资料";
+            editButton.addEventListener("click", function () {
+                editItem(item);
+            });
+
+            const deleteButton = document.createElement("button");
+            deleteButton.className = "item-button delete-button";
+            deleteButton.type = "button";
+            deleteButton.textContent = "删除";
+            deleteButton.addEventListener("click", function () {
+                deleteItem(item.id);
+            });
+
+            actions.appendChild(editButton);
+            actions.appendChild(deleteButton);
+            card.appendChild(id);
+            card.appendChild(title);
+            card.appendChild(content);
+            card.appendChild(tagList);
+            card.appendChild(actions);
+            return card;
+        }
+
+        function loadItems(keyword = "") {
+            showListState("···", "正在读取资料", "正在从本地资料库加载内容");
+            const url = "/api/items?keyword=" + encodeURIComponent(keyword);
+
+            fetch(url)
+                .then(function (response) {
+                    if (!response.ok) {
+                        throw new Error("读取失败，状态码：" + response.status);
+                    }
+                    return response.json();
+                })
+                .then(function (items) {
+                    itemCount.textContent = items.length;
+                    list.textContent = "";
+
+                    if (items.length === 0) {
+                        const title = keyword ? "没有匹配的资料" : "资料库还是空的";
+                        const description = keyword ? "尝试更换关键词，或清除搜索条件" : "从左侧添加第一条开发资料吧";
+                        showListState("⌘", title, description);
+                        return;
+                    }
+
+                    items.forEach(function (item, index) {
+                        list.appendChild(createItemCard(item, index));
+                    });
+                })
+                .catch(function (error) {
+                    itemCount.textContent = "—";
+                    showListState("!", "资料读取失败", "请确认服务正在运行后刷新页面");
+                    console.error("读取资料失败：", error);
+                });
+        }
+
+        function editItem(item) {
             editingID = item.id;
             titleInput.value = item.title;
             contentInput.value = item.content;
             tagsInput.value = (item.tags || []).join(", ");
+            formHeading.textContent = "编辑资料";
             submitButton.textContent = "保存修改";
             cancelEditButton.hidden = false;
-            message.textContent = "正在编辑：" + item.title;
+            setMessage("正在编辑：" + item.title);
             titleInput.focus();
+
+            if (window.innerWidth <= 700) {
+                formHeading.scrollIntoView({ behavior: "smooth", block: "start" });
+            }
         }
 
-        function resetItemForm(){
+        function resetItemForm() {
             editingID = null;
             form.reset();
-            submitButton.textContent = "添加资料";
+            formHeading.textContent = "收藏新资料";
+            submitButton.textContent = "添加到资料库";
             cancelEditButton.hidden = true;
         }
 
-
-        function deleteItem(id){
-            const confirmed = window.confirm("确定要删除这条资料吗?");
-            if (!confirmed){
+        function deleteItem(id) {
+            const confirmed = window.confirm("确定要删除这条资料吗？此操作无法撤销。");
+            if (!confirmed) {
                 return;
             }
 
-            fetch("/api/items/" + id,{
-                method: "DELETE"
-            })
-            .then(function (response) {
-                if (!response.ok) {
-                    return response.text().then(function (text) {
-                        throw new Error(text);
-                    });
-                }
-
-                if (editingID === id) {
-                    resetItemForm();
-                }
-                message.textContent = "删除成功";
-
-                const keyword = keywordInput.value.trim();
-                loadItems(keyword);
-            })
-            .catch(function (error) {
-                console.error("删除资料失败：", error);
-                message.textContent = "删除资料失败：" + error.message;
-            });
+            fetch("/api/items/" + id, { method: "DELETE" })
+                .then(function (response) {
+                    if (!response.ok) {
+                        return response.text().then(function (text) {
+                            throw new Error(text);
+                        });
+                    }
+                    if (editingID === id) {
+                        resetItemForm();
+                    }
+                    setMessage("资料已删除", "success");
+                    loadItems(keywordInput.value.trim());
+                })
+                .catch(function (error) {
+                    console.error("删除资料失败：", error);
+                    setMessage("删除资料失败：" + error.message, "error");
+                });
         }
-        form.addEventListener("submit", function(event){
+
+        form.addEventListener("submit", function (event) {
             event.preventDefault();
             const formData = new FormData(form);
-            const title =  formData.get("title");
-            const content =  formData.get("content")
-            const tagstext = formData.get("tags");
-            const tags = tagstext.split(",")
-            .map(function (part){
-                return part.trim();
-            })
-            .filter(function (tag){
-                return tag !=="";
-            });
+            const tagText = formData.get("tags");
+            const tags = tagText.split(",")
+                .map(function (part) { return part.trim(); })
+                .filter(function (tag) { return tag !== ""; });
             const itemData = {
-                title: title,
-                content: content,
+                title: formData.get("title"),
+                content: formData.get("content"),
                 tags: tags
             };
 
             const isEditing = editingID !== null;
             const requestURL = isEditing ? "/api/items/" + editingID : "/api/items";
             const requestMethod = isEditing ? "PUT" : "POST";
+            submitButton.disabled = true;
+            submitButton.textContent = isEditing ? "正在保存…" : "正在添加…";
 
-            fetch(requestURL,{
+            fetch(requestURL, {
                 method: requestMethod,
-                headers: {
-                    "Content-Type": "application/json"
-                },
+                headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(itemData)
-
             })
-            .then(function(response){
-                if(!response.ok){
-                    return response.text().then(function (text){
-                        throw new Error(text);
-                    });
-                }
-                return response.json();
-            })
-            .then(function (savedItem){
-                message.textContent = (isEditing ? "修改成功：" : "添加成功：") + savedItem.title;
-                resetItemForm();
-                loadItems(keywordInput.value.trim());
-            })
-            .catch(function(error){
-                const action = isEditing ? "修改" : "添加";
-                console.error(action + "资料失败：", error);
-                message.textContent = action + "资料失败：" + error.message;
-            })
-
-        })
-
-        cancelEditButton.addEventListener("click", function(){
-            resetItemForm();
-            message.textContent = "已取消编辑";
+                .then(function (response) {
+                    if (!response.ok) {
+                        return response.text().then(function (text) { throw new Error(text); });
+                    }
+                    return response.json();
+                })
+                .then(function (savedItem) {
+                    setMessage((isEditing ? "修改成功：" : "添加成功：") + savedItem.title, "success");
+                    resetItemForm();
+                    loadItems(keywordInput.value.trim());
+                })
+                .catch(function (error) {
+                    const action = isEditing ? "修改" : "添加";
+                    console.error(action + "资料失败：", error);
+                    setMessage(action + "资料失败：" + error.message, "error");
+                })
+                .finally(function () {
+                    submitButton.disabled = false;
+                    submitButton.textContent = editingID !== null ? "保存修改" : "添加到资料库";
+                });
         });
 
-        searchForm.addEventListener("submit", function(event){
-            event.preventDefault();
-            
-            const keyword = keywordInput.value.trim();
-            loadItems(keyword);
-        })
+        cancelEditButton.addEventListener("click", function () {
+            resetItemForm();
+            setMessage("已取消编辑");
+        });
 
-        clearSearchButton.addEventListener("click", function(){
+        searchForm.addEventListener("submit", function (event) {
+            event.preventDefault();
+            loadItems(keywordInput.value.trim());
+        });
+
+        clearSearchButton.addEventListener("click", function () {
             keywordInput.value = "";
             loadItems();
+            keywordInput.focus();
         });
 
         loadItems();
