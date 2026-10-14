@@ -3,3 +3,6 @@
 
 # 本地保存的个人资料
 /data/items.json
+
+# SQLite 数据库及其临时文件
+/data/devstash.db*
